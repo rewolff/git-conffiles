@@ -1,0 +1,65 @@
+#!/bin/bash
+
+
+mklink () {
+  for i in $* ; do
+    ln=thelinks/`echo $i | sed -e's:/:_:g' -e's/^_//'  `
+    if [ ! -L $ln ] ; then 
+      ln -s $i $ln
+    fi
+  done
+}
+
+do_commit () {
+  cp -Lr thelinks/*  thefiles/
+  tag=`date +'%Y%m%d_%H%M' `
+  git add thelinks/* thefiles/*
+    nc=false
+  if git status |grep  -q 'not staged'  ; then 
+    nc=true
+  fi
+  if git status |grep  -q 'Changes to be committed' ; then 
+    nc=true
+  fi
+  if $nc ; then
+    git commit -m $tag
+  fi
+}
+
+cmd=$1
+shift
+
+thedir=$HOME/git-conffiles
+
+case $cmd in
+  mklinks)
+    cd $thedir
+    mklink `cat /var/lib/dpkg/info/*.conffiles`
+    ;;
+  add) 
+    cd $thedir
+    for i in $* ; do
+      echo $i >> manuallyadded
+    done
+    mklink $* 
+    ;;
+  init) 
+    mkdir -p $thedir
+    cd $thedir
+    touch manuallyadded
+    mkdir thelinks
+    mkdir thefiles
+    git init .
+    ;;
+  commit)
+    cd $thedir
+    do_commit
+    ;;
+  update)
+    $0 mklinks
+    $0 commit
+    ;;
+  *)
+    echo $0: unknown subcommand: $cmd .
+    ;;
+esac
